@@ -1,75 +1,48 @@
 name: 🪟 Zeta Powered RDP — Windows 10 Tunnel
 
-on: 
+on:
   workflow_dispatch:
-  push:
 
 jobs:
-  deploy:
-    name: 🔓 Unlock Remote Window
+  rdp-tunnel:
     runs-on: windows-latest
-    timeout-minutes: 9999
-
     steps:
-    - name: 📦 Download Ngrok
-      run: Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: 📂 Extract Ngrok
-      run: Expand-Archive ngrok.zip
+      - name: Set RDP Password (ensure RDP_PASSWORD secret is set)
+        run: |
+          $rdpPass = "${{ secrets.RDP_PASSWORD }}"
+          if (-not $rdpPass -or $rdpPass -eq "") {
+            Write-Host "❌ RDP_PASSWORD secret missing. Exiting!"
+            exit 1
+          }
+          net user runneradmin $rdpPass
 
-    
-    - name: 🔑 Authenticate Ngrok
-      shell: pwsh
-      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+      - name: Download latest ngrok (v3+)
+        run: |
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+          Expand-Archive ngrok.zip -DestinationPath ngrok
+          Move-Item ngrok\ngrok.exe .\ngrok.exe
 
-    - name: 🧠 Enable RDP & Firewall
-      shell: pwsh
-      run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
-        Write-Host "✅ Remote Desktop is now enabled."
+      - name: Start ngrok TCP tunnel
+        run: |
+          Write-Host "Launching ngrok tcp 3389..."
+          .\ngrok.exe authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          .\ngrok.exe tcp 3389 --log=stdout | Tee-Object -FilePath tunnel.txt &
+          Start-Sleep -Seconds 5
+          if (!(Test-Path "tunnel.txt")) {
+            Write-Host "❌ tunnel.txt not created. ngrok failed."
+            exit 1
+          }
 
-    - name: 🔐 Set RDP Password for runneradmin
-      shell: pwsh
-      run: |
-        $rdpPass = "${{ secrets.RDP_PASSWORD }}"
-        if (-not $rdpPass -or $rdpPass -eq "") {
-          Write-Host "❌ RDP_PASSWORD secret missing. Exiting!"
-          exit 1
-        }
-        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText $rdpPass -Force)
-        Write-Host "🔐 Password set for runneradmin."
-
-    - name: 🚪 Create TCP Tunnel (Debug)
-      shell: pwsh
-      run: |
-        Write-Host "ngrok version:"
-        .\ngrok\ngrok.exe version
-        Write-Host "ngrok help:"
-        .\ngrok\ngrok.exe help
-
-        Write-Host "Launching ngrok tcp 3389..."
-        .\ngrok\ngrok.exe tcp 3389 --log=stdout | Tee-Object -FilePath tunnel.txt
-
-        if (!(Test-Path "tunnel.txt")) {
-          Write-Host "❌ tunnel.txt not created. ngrok failed."
-          exit 1
-        } else {
-          Write-Host "✅ tunnel.txt created!"
-          Get-Content tunnel.txt
-        }
-
-    - name: 📢 Show Tunnel Address
-      shell: pwsh
-      run: |
-        $tunnel = Get-Content tunnel.txt
-        Write-Host "🚀 Tunnel is ready:"
-        Write-Host $tunnel
-        Write-Host "✨ Zeta এখন দূর থেকে আলো ছড়াচ্ছে... রিমোট জানালা খুলে গেছে!"
-
-    - name: 💤 Keep VM Alive
-      shell: pwsh
-      run: Start-Sleep -Seconds 999999
+      - name: Show Tunnel Address
+        run: |
+          $content = Get-Content tunnel.txt -Raw
+          $match = [regex]::Match($content, "tcp://([\w\.]+):(\d+)")
+          if ($match.Success) {
+            Write-Host "✅ Tunnel address: $($match.Value)"
+          } else {
+            Write-Host "❌ Could not find tunnel address."
+            exit 1
+          }
