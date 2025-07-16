@@ -17,15 +17,7 @@ jobs:
     - name: 📂 Extract Ngrok
       run: Expand-Archive ngrok.zip
 
-    - name: 🧾 Debug: Check Ngrok Extracted
-      shell: pwsh
-      run: |
-        if (!(Test-Path ".\ngrok\ngrok.exe")) {
-          Write-Host "❌ ngrok.exe not found! Extraction failed."
-          exit 1
-        }
-        Write-Host "✅ ngrok.exe found."
-
+    
     - name: 🔑 Authenticate Ngrok
       shell: pwsh
       run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
