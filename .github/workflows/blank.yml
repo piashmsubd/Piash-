@@ -31,12 +31,13 @@ jobs:
 
     - name: 🔐 Set RDP Password for runneradmin
       run: |
-        if (-not "${{ secrets.RDP_PASSWORD }}") {
+        $rdpPass = "${{ secrets.RDP_PASSWORD }}"
+        if (-not $rdpPass -or $rdpPass -eq "") {
           Write-Host "❌ RDP_PASSWORD secret missing. Exiting!"
           exit 1
         }
-        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "${{ secrets.RDP_PASSWORD }}" -Force)
-        Write-Host "🔐 Password set for 12@Piashmsu."
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText $rdpPass -Force)
+        Write-Host "🔐 Password set for runneradmin."
 
     - name: 🚪 Create TCP Tunnel
       run: .\ngrok\ngrok.exe tcp 3389 > tunnel.txt
