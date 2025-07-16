@@ -17,6 +17,14 @@ jobs:
     - name: 📂 Extract Ngrok
       run: Expand-Archive ngrok.zip
 
+    - name: 🧾 Debug: Check Ngrok Extracted
+      run: |
+        if (!(Test-Path ".\ngrok\ngrok.exe")) {
+          Write-Host "❌ ngrok.exe not found! Extraction failed."
+          exit 1
+        }
+        Write-Host "✅ ngrok.exe found."
+
     - name: 🔑 Authenticate Ngrok
       run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
       env:
@@ -39,8 +47,23 @@ jobs:
         Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText $rdpPass -Force)
         Write-Host "🔐 Password set for runneradmin."
 
-    - name: 🚪 Create TCP Tunnel
-      run: .\ngrok\ngrok.exe tcp 3389 > tunnel.txt
+    - name: 🚪 Create TCP Tunnel (Debug)
+      run: |
+        Write-Host "ngrok version:"
+        .\ngrok\ngrok.exe version
+        Write-Host "ngrok help:"
+        .\ngrok\ngrok.exe help
+
+        Write-Host "Launching ngrok tcp 3389..."
+        .\ngrok\ngrok.exe tcp 3389 --log=stdout | Tee-Object -FilePath tunnel.txt
+
+        if (!(Test-Path "tunnel.txt")) {
+          Write-Host "❌ tunnel.txt not created. ngrok failed."
+          exit 1
+        } else {
+          Write-Host "✅ tunnel.txt created!"
+          Get-Content tunnel.txt
+        }
 
     - name: 📢 Show Tunnel Address
       run: |
