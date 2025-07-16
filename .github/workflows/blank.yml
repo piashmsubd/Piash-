@@ -18,6 +18,7 @@ jobs:
       run: Expand-Archive ngrok.zip
 
     - name: 🧾 Debug: Check Ngrok Extracted
+      shell: pwsh
       run: |
         if (!(Test-Path ".\ngrok\ngrok.exe")) {
           Write-Host "❌ ngrok.exe not found! Extraction failed."
@@ -26,11 +27,13 @@ jobs:
         Write-Host "✅ ngrok.exe found."
 
     - name: 🔑 Authenticate Ngrok
+      shell: pwsh
       run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
     - name: 🧠 Enable RDP & Firewall
+      shell: pwsh
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
@@ -38,6 +41,7 @@ jobs:
         Write-Host "✅ Remote Desktop is now enabled."
 
     - name: 🔐 Set RDP Password for runneradmin
+      shell: pwsh
       run: |
         $rdpPass = "${{ secrets.RDP_PASSWORD }}"
         if (-not $rdpPass -or $rdpPass -eq "") {
@@ -48,6 +52,7 @@ jobs:
         Write-Host "🔐 Password set for runneradmin."
 
     - name: 🚪 Create TCP Tunnel (Debug)
+      shell: pwsh
       run: |
         Write-Host "ngrok version:"
         .\ngrok\ngrok.exe version
@@ -66,6 +71,7 @@ jobs:
         }
 
     - name: 📢 Show Tunnel Address
+      shell: pwsh
       run: |
         $tunnel = Get-Content tunnel.txt
         Write-Host "🚀 Tunnel is ready:"
@@ -73,4 +79,5 @@ jobs:
         Write-Host "✨ Zeta এখন দূর থেকে আলো ছড়াচ্ছে... রিমোট জানালা খুলে গেছে!"
 
     - name: 💤 Keep VM Alive
+      shell: pwsh
       run: Start-Sleep -Seconds 999999
