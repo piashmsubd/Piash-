@@ -1,0 +1,33 @@
+name: 🪟 Zeta Powered RDP — Windows 10 Tunnel
+
+on: 
+  workflow_dispatch:
+  push:
+
+jobs:
+  deploy:
+    name: 🔓 Unlock Remote Window
+    runs-on: windows-latest
+    timeout-minutes: 9999
+
+    steps:
+    - name: 📦 Download Ngrok
+      run: Invoke-WebRequest https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+
+    - name: 📂 Extract Ngrok
+      run: Expand-Archive ngrok.zip
+
+    - name: 🔑 Auth Ngrok
+      run: .\ngrok\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+
+    - name: 🧠 Enable RDP
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
+        Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "${{ secrets.RDP_PASSWORD }}" -Force)
+
+    - name: 🚪 Create TCP Tunnel (Port 3389)
+      run: .\ngrok\ngrok.exe tcp 3389
